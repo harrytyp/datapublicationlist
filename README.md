@@ -71,6 +71,7 @@ Edit `config.json` before running:
 
 - **email**: Required for the Crossref/Unpaywall "polite pool".
 - **process_limit**: Set to a number (e.g., `5`) for testing, or `null` for full execution.
+- **skip_pdf_scan**: Set to `true` to skip the time-consuming PDF scanning stage and only use API-based discovery.
 
 ## Usage
 

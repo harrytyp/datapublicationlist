@@ -23,6 +23,7 @@ def load_config():
         "enl_file": "e-conversion-Converted.enl",
         "max_workers": 4,
         "process_limit": None,
+        "skip_pdf_scan": False,
         "api_keys": {"openaire": None}
     }
     if os.path.exists(CONFIG_PATH):
@@ -40,6 +41,7 @@ OUTPUT_FILE = config["output_file"]
 ENL_FILE = config["enl_file"]
 MAX_WORKERS = config["max_workers"]
 PROCESS_LIMIT = config["process_limit"]
+SKIP_PDF_SCAN = config.get("skip_pdf_scan", False)
 
 def process_article(article: dict, enl_url: str = None) -> list[dict]:
     """Process a single article to find linked datasets and return their metadata."""
@@ -52,7 +54,7 @@ def process_article(article: dict, enl_url: str = None) -> list[dict]:
     candidate_dois.update(query_datacite(doi))
 
     # Stage 4: PDF fallback if no candidates found
-    if not candidate_dois:
+    if not candidate_dois and not SKIP_PDF_SCAN:
         # Prioritize URL from ENL file
         pdf_url = enl_url if enl_url else get_pdf_url(doi, EMAIL)
         if pdf_url:
