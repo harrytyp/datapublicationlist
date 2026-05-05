@@ -9,6 +9,7 @@ ENV/
 
 # Project Specific
 scratch/
+test_pdf_scan.py
 *_econversion.*
 scraper_cache.json
 data_publication_dois.csv
