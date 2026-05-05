@@ -1,7 +1,6 @@
 from .base import BaseAdapter
-from ..models import AdapterResult, DatasetLink
-from ..utils.doi import normalize_doi
-from ..utils.http import HTTPSession
+from discovery_models import AdapterResult, DatasetLink
+from utils import normalize_doi, HTTPSession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,51 +10,38 @@ class DOEDataExplorerAdapter(BaseAdapter):
     name = "DOE_DDE"
 
     def __init__(self, config, http_config):
-        super().__init__(config)
+        super().__init__(config, http_config)
         self.session = HTTPSession(
-            base_url=config.base_url,
-            timeout=config.timeout_seconds,
+            base_url=config.get("base_url", "https://www.osti.gov/dataexplorer/api/v1"),
+            timeout=config.get("timeout_seconds", 15),
             user_agent=http_config.user_agent
         )
-        self.http_config = http_config
 
     def fetch(self, doi: str) -> AdapterResult:
         normalized_input = normalize_doi(doi)
         links = []
         errors = []
-        
         page = 1
-        max_rows = self.config.max_results
+        max_rows = self.config.get("max_results", 100)
         
         while True:
-            params = {
-                "q": normalized_input,
-                "rows": max_rows,
-                "page": page
-            }
-            
+            params = {"q": normalized_input, "rows": max_rows, "page": page}
             try:
                 response = self.session.get(
                     "records", 
                     params=params, 
-                    rate_limit_delay=self.config.rate_limit_delay_seconds,
+                    rate_limit_delay=self.config.get("rate_limit_delay_seconds", 1.0),
                     retries=self.http_config.retry_attempts,
                     backoff=self.http_config.retry_backoff_seconds
                 )
                 
-                if not response:
-                    break
-                    
+                if not response: break
                 data = response.json()
-                # data is expected to be a list of records
-                if not isinstance(data, list):
-                    break
+                if not isinstance(data, list): break
                 
                 for record in data:
                     related_ids = record.get("related_identifiers", [])
                     matched_relation = None
-                    
-                    # Verify exact DOI match in related_identifiers to avoid false positives
                     for rel in related_ids:
                         if rel.get("identifier_type") == "DOI":
                             if normalize_doi(rel.get("related_identifier")) == normalized_input:
@@ -72,22 +58,15 @@ class DOEDataExplorerAdapter(BaseAdapter):
                             dataset_doi=dataset_doi,
                             dataset_url=dataset_url,
                             relation_type=matched_relation,
-                            repository="DOE_DDE",
+                            repository=self.name,
                             confidence="confirmed",
                             raw={"related_identifiers": related_ids}
                         ))
                 
-                if len(data) < max_rows:
-                    break
+                if len(data) < max_rows: break
                 page += 1
-                
             except Exception as e:
                 errors.append(str(e))
                 break
                 
-        return AdapterResult(
-            adapter_name=self.name,
-            input_doi=doi,
-            links=links,
-            errors=errors
-        )
+        return AdapterResult(adapter_name=self.name, input_doi=doi, links=links, errors=errors)

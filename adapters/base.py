@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import Optional
-from ..models import AdapterResult
+from discovery_models import AdapterResult
 
 logger = logging.getLogger(__name__)
 
@@ -10,9 +9,10 @@ class BaseAdapter(ABC):
     
     name: str = "Base"
     
-    def __init__(self, config):
+    def __init__(self, config, http_config=None):
         self.config = config
-        self.enabled = config.enabled
+        self.http_config = http_config
+        self.enabled = config.get("enabled", True)
 
     @abstractmethod
     def fetch(self, doi: str) -> AdapterResult:

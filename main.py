@@ -1,41 +1,34 @@
 import csv
-import time
-import os
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 from scraper import scrape_dois, PUBLICATIONS_URL
 from enl_parser import extract_data_from_enl
-from openaire import query_openaire
-from crossref import query_crossref
-from datacite import query_datacite
 from pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
 from resolver import is_data_publication, get_doi_metadata
+from discovery_pipeline import DiscoveryPipeline
 
-from stage3b.config import Stage3bConfig
-from stage3b.pipeline import Stage3bPipeline
-
-# Load configuration
+# Configuration
 CONFIG_PATH = "config.json"
 
 def load_config():
+    """Load configuration from config.json."""
     default_config = {
         "email": "your-email@example.com",
         "output_file": "data_publication_dois.csv",
         "enl_file": "e-conversion-Converted.enl",
         "max_workers": 4,
         "process_limit": None,
-        "skip_pdf_scan": False,
-        "api_keys": {"openaire": None}
+        "skip_pdf_scan": True,
+        "adapters": {}
     }
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
-            try:
-                user_config = json.load(f)
-                default_config.update(user_config)
-            except Exception:
-                pass
+            user_config = json.load(f)
+            default_config.update(user_config)
     return default_config
 
 config = load_config()
@@ -44,60 +37,50 @@ OUTPUT_FILE = config["output_file"]
 ENL_FILE = config["enl_file"]
 MAX_WORKERS = config["max_workers"]
 PROCESS_LIMIT = config["process_limit"]
-SKIP_PDF_SCAN = config.get("skip_pdf_scan", False)
+SKIP_PDF_SCAN = config.get("skip_pdf_scan", True)
 
-# Initialize Stage 3b discovery pipeline
-stage3b_pipeline = Stage3bPipeline(Stage3bConfig())
+# Initialize Discovery Pipeline
+discovery_pipeline = DiscoveryPipeline(config)
 
 def process_article(article: dict, enl_url: str = None) -> list[dict]:
     """Process a single article to find linked datasets and return their metadata."""
     doi = article["article_doi"]
-    candidate_dois = set()
-
-    # Stage 3a: Core API lookups
-    candidate_dois.update(query_openaire(doi))
-    candidate_dois.update(query_crossref(doi, EMAIL))
-    candidate_dois.update(query_datacite(doi))
-
-    # Remove the article DOI itself from candidates
-    candidate_dois.discard(doi)
-
-    # Resolve and classify Core candidates
     confirmed_datasets = []
-    for candidate in candidate_dois:
-        time.sleep(0.1)  # Rate limiting
-        meta = get_doi_metadata(candidate, EMAIL)
-        if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
-            confirmed_datasets.append(meta)
 
-    # Stage 3b: Domain-specific discovery (DOE, HEPData, etc.)
-    s3b_links = stage3b_pipeline.get_all_links(doi)
-    for link in s3b_links:
+    # 1. Unified API Discovery (Core + Domain-Specific)
+    discovery_links = discovery_pipeline.get_all_links(doi)
+    
+    for link in discovery_links:
         if link.dataset_doi:
-            # Check if we already have it
+            # Avoid self-references
+            if link.dataset_doi.strip().lower() == doi.strip().lower():
+                continue
+            # Deduplicate
             if not any(d["doi"] == link.dataset_doi for d in confirmed_datasets):
                 meta = get_doi_metadata(link.dataset_doi, EMAIL)
-                confirmed_datasets.append(meta)
+                if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
+                    confirmed_datasets.append(meta)
         elif link.dataset_url:
-             # URL only entry
-             confirmed_datasets.append({
-                 "doi": link.dataset_doi,
-                 "title": f"[{link.repository}] Linked Data",
-                 "type": "dataset (url only)"
-             })
+            # URL only entry
+            confirmed_datasets.append({
+                "doi": None,
+                "title": f"[{link.repository}] Linked Data",
+                "type": "dataset (url only)",
+                "url": link.dataset_url
+            })
 
-    # Stage 4: PDF fallback if no candidates found so far
+    # 2. PDF Fallback if no candidates found so far
     if not confirmed_datasets and not SKIP_PDF_SCAN:
-        # Prioritize URL from ENL file
         pdf_url = enl_url if enl_url else get_pdf_url(doi, EMAIL)
         if pdf_url:
             raw_dois = extract_dois_from_pdf(pdf_url)
             pdf_candidates = filter_likely_dataset_dois(raw_dois)
             for candidate in pdf_candidates:
-                if candidate != doi:
-                    meta = get_doi_metadata(candidate, EMAIL)
-                    if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
-                        confirmed_datasets.append(meta)
+                if candidate.strip().lower() != doi.strip().lower():
+                    if not any(d["doi"] == candidate for d in confirmed_datasets):
+                        meta = get_doi_metadata(candidate, EMAIL)
+                        if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
+                            confirmed_datasets.append(meta)
 
     return confirmed_datasets
 
@@ -110,93 +93,58 @@ def main():
     print(f"Found {len(web_articles)} articles with metadata on the website.")
     
     # 2. Extract mappings from ENL file
-    enl_doi_to_url = {}
-    enl_dataset_candidates = set()
+    print(f"Scanning {ENL_FILE} for additional metadata and candidates...")
     if os.path.exists(ENL_FILE):
-        print(f"\nScanning {ENL_FILE} for additional metadata and candidates...")
         enl_data = extract_data_from_enl(ENL_FILE)
-        enl_doi_to_url = enl_data["doi_to_url"]
-        likely_datasets = filter_likely_dataset_dois(enl_data["dataset_dois"])
-        enl_dataset_candidates.update(likely_datasets)
-        print(f"Extracted {len(enl_doi_to_url)} DOI-to-URL mappings and {len(likely_datasets)} dataset candidates.")
-    
-    if not web_articles:
-        print("No articles found on the website. Exiting.")
-        return
+        enl_mappings = enl_data.get("doi_to_url", {})
+        print(f"Extracted {len(enl_mappings)} DOI-to-URL mappings.")
+    else:
+        print(f"Warning: {ENL_FILE} not found. Skipping ENL parsing.")
+        enl_mappings = {}
 
+    # Limit processing if configured
     if PROCESS_LIMIT:
-        print(f"\nLimit applied: processing only the first {PROCESS_LIMIT} articles.")
+        print(f"Limiting process to first {PROCESS_LIMIT} articles for testing.")
         web_articles = web_articles[:PROCESS_LIMIT]
 
     # 3. Process each article
-    print("\nProcessing articles for linked datasets...")
     results = []
-    
+    print("\nProcessing articles for linked datasets...")
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {
-            executor.submit(process_article, a, enl_doi_to_url.get(a["article_doi"])): a 
-            for a in web_articles
-        }
+        futures = []
+        for article in web_articles:
+            doi = article["article_doi"]
+            enl_url = enl_mappings.get(doi)
+            futures.append(executor.submit(process_article, article, enl_url))
         
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Discovery"):
-            article = futures[future]
-            try:
-                datasets = future.result()
-                if not datasets:
-                    # Add article anyway but with no datasets found
-                    results.append({
-                        "article_doi": article["article_doi"],
-                        "article_title": article.get("title", ""),
-                        "article_authors": article.get("authors", ""),
-                        "article_year": article.get("year", ""),
-                        "enl_url": enl_doi_to_url.get(article["article_doi"], ""),
-                        "dataset_doi": "",
-                        "dataset_title": "",
-                        "dataset_type": ""
-                    })
-                else:
-                    for ds in datasets:
-                        results.append({
-                            "article_doi": article["article_doi"],
-                            "article_title": article.get("title", ""),
-                            "article_authors": article.get("authors", ""),
-                            "article_year": article.get("year", ""),
-                            "enl_url": enl_doi_to_url.get(article["article_doi"], ""),
-                            "dataset_doi": ds["doi"],
-                            "dataset_title": ds["title"],
-                            "dataset_type": ds["type"]
-                        })
-            except Exception as e:
-                print(f"Error processing {article['article_doi']}: {e}")
-
-    # 4. Handle independent ENL candidates
-    if enl_dataset_candidates:
-        print("\nVerifying dataset candidates from ENL file...")
-        for candidate in tqdm(enl_dataset_candidates, desc="Resolving ENL candidates"):
-            meta = get_doi_metadata(candidate, EMAIL)
-            if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
+        for i, future in enumerate(tqdm(futures, desc="Discovery")):
+            article = web_articles[i]
+            datasets = future.result()
+            
+            for ds in datasets:
                 results.append({
-                    "article_doi": "Independent ENL Candidate",
-                    "article_title": "",
-                    "article_authors": "",
-                    "article_year": "",
-                    "enl_url": "",
-                    "dataset_doi": meta["doi"],
-                    "dataset_title": meta["title"],
-                    "dataset_type": meta["type"]
+                    "article_doi": article["article_doi"],
+                    "article_title": article["title"],
+                    "article_authors": article["authors"],
+                    "article_year": article["year"],
+                    "dataset_doi": ds.get("doi"),
+                    "dataset_title": ds.get("title"),
+                    "dataset_type": ds.get("type"),
+                    "dataset_url": ds.get("url") or (f"https://doi.org/{ds['doi']}" if ds.get('doi') else ""),
+                    "source_enl_url": enl_mappings.get(article["article_doi"], "")
                 })
 
-    # Write output
-    print(f"\nSaving results to {OUTPUT_FILE}...")
-    keys = ["article_doi", "article_title", "article_authors", "article_year", "enl_url", "dataset_doi", "dataset_title", "dataset_type"]
-    with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
-        writer.writeheader()
-        writer.writerows(results)
-
-    # Count datasets
-    found_datasets = [r for r in results if r["dataset_doi"]]
-    print(f"Done! {len(found_datasets)} dataset-article mappings saved to {OUTPUT_FILE}.")
+    # 4. Save to CSV
+    if results:
+        keys = results[0].keys()
+        with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=keys)
+            writer.writeheader()
+            writer.writerows(results)
+        print(f"\nSuccess! Found {len(results)} dataset links.")
+        print(f"Results saved to: {OUTPUT_FILE}")
+    else:
+        print("\nNo datasets found.")
 
 if __name__ == "__main__":
     main()
