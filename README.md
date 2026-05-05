@@ -29,24 +29,19 @@ The discovery process follows a multi-stage pipeline:
 
 ## Input Sources
 
-You can configure which inputs to use in `config.json`. Place files in the root directory or specify a path:
+The tool features a **Zero-Config Drop-in** system. Simply place your publication files into the **`inputs/`** folder. The pipeline automatically detects the format and processes the content.
 
-| Source | Format | Key in `config.json` | Use case |
-|---|---|---|---|
-| Cluster Website | Web / HTML | `website` | Automated cluster-wide discovery |
-| EndNote | `.enl` (binary) | `enl` | Leveraging existing research libraries |
-| RIS | `.ris` (text) | `ris` | Export from Zotero, Mendeley, etc. |
-| JSON | `.json` | `json` | Manual or custom lists |
+### Supported Drop-in Formats:
+- **EndNote (`.enl`)**: Scans binary libraries for DOIs and PDF links.
+- **RIS (`.ris`)**: Standard citation format (Zotero, Mendeley, etc.).
+- **JSON (`.json`)**: Custom lists of articles.
 
-### How to Organize Inputs
-- **ENL Files**: Place your `.enl` file (e.g., `e-conversion-Converted.enl`) in the root folder.
-- **RIS Files**: Export your library as RIS and update the `filepath` in `config.json`.
-- **JSON Format**:
-  ```json
-  [
-    {"article_doi": "10.1038/s41467-019-10632-z", "title": "Example", "authors": "Smith", "year": "2019"}
-  ]
-  ```
+### How to use:
+1.  Place your `.enl` or `.ris` files into the `inputs/` directory.
+2.  (Optional) The **Website Scraper** is enabled by default in `config.json` to fetch the cluster's official list.
+3.  Run `python main.py`.
+
+The tool will merge articles from all files in the `inputs/` folder and the website, deduplicate them by DOI, and start the discovery process.
 
 ## Supported Discovery Services
 
