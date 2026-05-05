@@ -2,6 +2,12 @@
 
 A robust, modular Python pipeline to identify research datasets linked to scientific publications by integrating multiple metadata sources and full-text scanning.
 
+## History & Credits
+
+This tool was originally developed by **Kolja Knodel**, Data Steward of the [e-conversion](https://www.e-conversion.de/) research cluster. 
+
+The project's origin and core purpose is to automate the discovery of formally declared data publications from traditional publication lists. The built-in website scraper was the first input source created, specifically tailored to help research clusters track their data impact by cross-referencing their official WordPress-based publication records with global data registries.
+
 ## Overview
 
 This tool automates the discovery of formally and informally linked research data by cross-referencing a WordPress-based publication list with major metadata APIs, domain-specific repositories, and full-text PDF scanning.
