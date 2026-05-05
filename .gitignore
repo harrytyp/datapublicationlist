@@ -8,6 +8,8 @@ venv/
 ENV/
 
 # Project Specific
+scratch/
+*_econversion.*
 scraper_cache.json
 data_publication_dois.csv
 *.enl
