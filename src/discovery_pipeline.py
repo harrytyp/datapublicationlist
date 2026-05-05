@@ -1,16 +1,16 @@
 import time
 import logging
 from typing import List, Dict, Any
-from discovery_models import AdapterResult, DatasetLink
+from .discovery_models import AdapterResult, DatasetLink
 
-from adapters.openaire import OpenAIREAdapter
-from adapters.crossref import CrossrefAdapter
-from adapters.datacite import DataCiteAdapter
-from adapters.doe_dde import DOEDataExplorerAdapter
-from adapters.hepdata import HEPDataAdapter
-from adapters.nasa_ads import NASAADSAdapter
-from adapters.mdf import MDFAdapter
-from adapters.nomad import NOMADAdapter
+from .adapters.openaire import OpenAIREAdapter
+from .adapters.crossref import CrossrefAdapter
+from .adapters.datacite import DataCiteAdapter
+from .adapters.doe_dde import DOEDataExplorerAdapter
+from .adapters.hepdata import HEPDataAdapter
+from .adapters.nasa_ads import NASAADSAdapter
+from .adapters.mdf import MDFAdapter
+from .adapters.nomad import NOMADAdapter
 
 logger = logging.getLogger(__name__)
 

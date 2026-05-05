@@ -34,13 +34,16 @@ The tool follows a multi-stage pipeline to ensure maximum discovery:
 
 ## Project Structure
 
-- `main.py`: Orchestrates the entire pipeline.
-- `scraper.py`: Handles website scraping with pagination and caching.
-- `enl_parser.py`: Parses EndNote `.enl` files for DOI-to-URL mappings.
-- `openaire.py`, `crossref.py`, `datacite.py`: API client modules.
-- `pdf_scanner.py`: Extracts DOIs from PDF full-text.
-- `resolver.py`: Resolves DOI metadata and classifies resource types.
-- `config.json`: Configuration for API keys, email, and processing limits.
+├── main.py              # Main pipeline entry point
+├── config.json          # User configuration (Email, limits, etc.)
+├── src/                 # Core discovery logic and adapters
+│   ├── adapters/        # Discovery services (OpenAIRE, DOE, etc.)
+│   ├── discovery_pipeline.py
+│   ├── discovery_models.py
+│   ├── utils.py
+│   └── ... (scrapers, parsers, scanners)
+├── requirements.txt
+└── README.md
 
 ## Installation
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-from discovery_models import AdapterResult
+from ..discovery_models import AdapterResult
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import re
 import io
 import requests
 import pdfplumber
-from utils import get_with_retry
+from .utils import get_with_retry
 
 UNPAYWALL_BASE = "https://api.unpaywall.org/v2"
 DOI_REGEX = re.compile(r'\b10\.\d{4,}/[^\s\,\;\]\)\"]+')

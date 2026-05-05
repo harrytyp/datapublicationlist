@@ -5,7 +5,7 @@ from tqdm import tqdm
 import json
 import os
 import time
-from utils import get_with_retry
+from .utils import get_with_retry
 
 PUBLICATIONS_URL = "https://www.e-conversion.de/de/publikationen/"
 CACHE_FILE = "scraper_cache.json"

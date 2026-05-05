@@ -5,11 +5,11 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-from scraper import scrape_dois, PUBLICATIONS_URL
-from enl_parser import extract_data_from_enl
-from pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
-from resolver import is_data_publication, get_doi_metadata
-from discovery_pipeline import DiscoveryPipeline
+from src.scraper import scrape_dois, PUBLICATIONS_URL
+from src.enl_parser import extract_data_from_enl
+from src.pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
+from src.resolver import is_data_publication, get_doi_metadata
+from src.discovery_pipeline import DiscoveryPipeline
 
 # Configuration
 CONFIG_PATH = "config.json"

@@ -1,7 +1,7 @@
 import sys
 from main import process_article, load_config
-from pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
-from enl_parser import extract_data_from_enl
+from src.pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
+from src.enl_parser import extract_data_from_enl
 
 def test_single_article(doi, enl_file=None, force_pdf_url=None):
     config = load_config()
@@ -9,42 +9,29 @@ def test_single_article(doi, enl_file=None, force_pdf_url=None):
     
     print(f"--- Testing Article: {doi} ---")
     
+    # 1. Get PDF URL
     pdf_url = force_pdf_url
     if not pdf_url:
-        # 1. Check ENL mapping
-        enl_url = None
-        if enl_file:
-            print(f"Checking ENL file: {enl_file}")
-            enl_data = extract_data_from_enl(enl_file)
-            enl_url = enl_data["doi_to_url"].get(doi)
-            if enl_url:
-                print(f"[ENL] Found URL: {enl_url}")
-            else:
-                print("[ENL] No URL found for this DOI in ENL file.")
-
-        # 2. Try to get PDF URL
-        pdf_url = enl_url if enl_url else get_pdf_url(doi, email)
+        print("[INFO] Querying Unpaywall for PDF URL...")
+        pdf_url = get_pdf_url(doi, email)
     
     if not pdf_url:
-        print("[PDF] Could not find a PDF URL.")
+        print("[ERROR] No PDF URL found for this DOI.")
         return
-
-    # Clean the URL if it has garbage at the end (from ENL extraction)
-    if ".pdf" in pdf_url:
-        pdf_url = pdf_url.split(".pdf")[0] + ".pdf"
 
     print(f"[PDF] Attempting to download and scan: {pdf_url}")
     
-    # 3. Extract DOIs
+    # 2. Extract DOIs from PDF
     raw_dois = extract_dois_from_pdf(pdf_url)
     print(f"[PDF] Extracted {len(raw_dois)} raw DOIs from PDF.")
     
-    # 4. Filter for datasets
+    # 3. Filter for datasets
     dataset_candidates = filter_likely_dataset_dois(raw_dois)
+    
     if dataset_candidates:
-        print(f"[SUCCESS] Found {len(dataset_candidates)} dataset candidates in PDF:")
-        for d in dataset_candidates:
-            print(f"  - {d}")
+        print(f"[SUCCESS] Found {len(dataset_candidates)} dataset-like DOIs:")
+        for ds in dataset_candidates:
+            print(f"  - {ds}")
     else:
         print("[INFO] No dataset-like DOIs found in the PDF text.")
 

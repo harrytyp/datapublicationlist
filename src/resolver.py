@@ -1,5 +1,5 @@
 import requests
-from utils import get_with_retry
+from .utils import get_with_retry
 
 DATASET_TYPES = {"dataset", "data paper", "datapaper", "software", "collection"}
 

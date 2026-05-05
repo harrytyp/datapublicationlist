@@ -1,6 +1,6 @@
 from .base import BaseAdapter
-from discovery_models import AdapterResult, DatasetLink
-from utils import normalize_doi, HTTPSession
+from ..discovery_models import AdapterResult, DatasetLink
+from ..utils import normalize_doi, HTTPSession
 import logging
 
 logger = logging.getLogger(__name__)
