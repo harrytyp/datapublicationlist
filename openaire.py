@@ -1,37 +1,33 @@
 import requests
+from utils import get_with_retry
 
-OPENAIRE_BASE = "https://api.openaire.eu/search/datasets"
+OPENAIRE_BASE = "https://api.openaire.eu/graph/researchProducts"
 
 def query_openaire(article_doi: str) -> list[str]:
-    """Return dataset DOIs linked to the given article DOI via OpenAIRE."""
+    """Return dataset DOIs from OpenAIRE Graph that are related to the given article DOI."""
     params = {
         "relatedDOI": article_doi,
-        "format": "json",
-        "size": 50
+        "type": "dataset",
+        "page": 1,
+        "pageSize": 50,
     }
+    
+    response = get_with_retry(OPENAIRE_BASE, params=params, timeout=20)
+    if not response or response.status_code != 200:
+        return []
+
     try:
-        r = requests.get(OPENAIRE_BASE, params=params, timeout=20)
-        if r.status_code != 200:
-            return []
-        
-        data = r.json()
-        results = data.get("response", {}).get("results", {}).get("result", [])
-        
-        if not isinstance(results, list):
-            # Sometimes single results aren't in a list depending on the API version/format
-            results = [results]
-            
+        data = response.json()
         dataset_dois = []
-        for result in results:
-            metadata = result.get("metadata", {}).get("oaf:entity", {})
-            pids = metadata.get("oaf:result", {}).get("pid", [])
-            if isinstance(pids, dict):
-                pids = [pids]
-            for pid in pids:
-                if pid.get("@classid") == "doi":
-                    dataset_dois.append(pid.get("$", "").strip())
+        # The Graph API returns a flatter structure
+        for item in data.get("results", []):
+            # Each result has a list of 'pids' (Persistent Identifiers)
+            for pid in item.get("pids", []):
+                if pid.get("scheme") == "doi":
+                    doi_val = pid.get("value")
+                    if doi_val:
+                        dataset_dois.append(doi_val.strip())
         
-        return [d for d in dataset_dois if d]
-    except Exception as e:
-        # print(f"OpenAIRE query error for {article_doi}: {e}")
+        return list(set(dataset_dois))  # Deduplicate
+    except Exception:
         return []

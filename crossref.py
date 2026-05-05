@@ -1,4 +1,5 @@
 import requests
+from utils import get_with_retry
 
 CROSSREF_BASE = "https://api.crossref.org/works"
 DATASET_RELATION_TYPES = {
@@ -8,12 +9,14 @@ DATASET_RELATION_TYPES = {
 def query_crossref(article_doi: str, email: str) -> list[str]:
     """Return dataset DOIs declared in Crossref relation metadata."""
     headers = {"User-Agent": f"DataPublicationFinder/1.0 (mailto:{email})"}
+    url = f"{CROSSREF_BASE}/{article_doi}"
+    
+    response = get_with_retry(url, headers=headers, timeout=20)
+    if not response or response.status_code != 200:
+        return []
+    
     try:
-        r = requests.get(f"{CROSSREF_BASE}/{article_doi}", headers=headers, timeout=20)
-        if r.status_code != 200:
-            return []
-        
-        work = r.json().get("message", {})
+        work = response.json().get("message", {})
         relations = work.get("relation", {})
         
         dataset_dois = []
@@ -23,7 +26,6 @@ def query_crossref(article_doi: str, email: str) -> list[str]:
                     if target.get("id-type") == "doi":
                         dataset_dois.append(target["id"].strip())
         
-        return dataset_dois
-    except Exception as e:
-        # print(f"Crossref query error for {article_doi}: {e}")
+        return list(set(dataset_dois))  # Deduplicate
+    except Exception:
         return []

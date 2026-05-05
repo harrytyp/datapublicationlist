@@ -5,6 +5,7 @@ from tqdm import tqdm
 import json
 import os
 import time
+from utils import get_with_retry
 
 PUBLICATIONS_URL = "https://www.e-conversion.de/de/publikationen/"
 CACHE_FILE = "scraper_cache.json"
@@ -26,11 +27,9 @@ def scrape_dois(url: str, use_cache: bool = True) -> list[dict]:
     publications = []
     
     # First request to get the total number of pages
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"Error fetching initial page: {e}")
+    response = get_with_retry(url, timeout=30)
+    if not response or response.status_code != 200:
+        print(f"Error fetching initial page.")
         return []
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -50,8 +49,10 @@ def scrape_dois(url: str, use_cache: bool = True) -> list[dict]:
         page_url = f"{url}?limit={page}"
         try:
             time.sleep(0.5)  # Rate limiting between page requests
-            r = requests.get(page_url, timeout=30)
-            r.raise_for_status()
+            r = get_with_retry(page_url, timeout=30)
+            if not r or r.status_code != 200:
+                continue
+                
             page_soup = BeautifulSoup(r.text, "html.parser")
             
             # Find all bibtex blocks
