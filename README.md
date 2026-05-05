@@ -6,15 +6,31 @@ A modular Python tool to identify research datasets linked to a research cluster
 
 This tool automates the discovery of formally and informally linked research data by cross-referencing a WordPress-based publication list with major metadata APIs and full-text PDF scanning.
 
-### Features
+### How it Works
 
-- **Dual DOI Sourcing**: Merges publications scraped from the e-conversion website with entries from an EndNote (`.enl`) library.
-- **Smart Metadata Parsing**: Extracts BibTeX metadata from the web and cleans "dirty" DOIs from EndNote URLs.
-- **Multi-Stage Discovery**:
-  - Queries **OpenAIRE**, **Crossref**, and **DataCite** for formal dataset relations.
-  - Falls back to **Full-Text PDF Scanning** via Unpaywall and EndNote links.
-- **Source Mapping**: Produces a comprehensive CSV mapping every dataset found back to its source article metadata.
-- **Efficient & Respectful**: Features a local scraping cache and built-in rate-limiting.
+The tool follows a multi-stage pipeline to ensure maximum discovery:
+
+1.  **Metadata Acquisition (Website)**: 
+    - The tool scrapes all 29 pages of the [e-conversion publication list](https://www.e-conversion.de/de/publikationen/).
+    - It extracts full BibTeX metadata (DOI, Title, Authors, Year) for each entry.
+    - Results are cached in `scraper_cache.json` for instant reuse.
+2.  **EndNote Linkage (ENL File)**: 
+    - It parses the provided `.enl` library file using a binary-safe regex.
+    - It maps the website DOIs to the corresponding URLs/Links stored in EndNote.
+    - It intelligently cleans "dirty" DOIs (e.g., handles cases where ISSNs are concatenated to the DOI in URLs).
+3.  **Formal API Discovery**: 
+    - For each article, the tool queries **OpenAIRE**, **Crossref**, and **DataCite**.
+    - It looks for formal metadata relationships such as `is-supplemented-by` or `has-part`.
+4.  **Full-Text Fallback (PDF Scanning)**: 
+    - If no formal link is found, the tool attempts to scan the article's PDF.
+    - **Priority**: It uses the direct link found in your `.enl` file.
+    - **Fallback**: It queries **Unpaywall** for an Open Access PDF URL.
+    - The PDF is downloaded in memory and scanned for DOIs belonging to known data repositories (Zenodo, Figshare, Dryad, etc.).
+5.  **Validation & Metadata Enrichment**: 
+    - Every candidate dataset found is validated against **DataCite/Crossref** to confirm its resource type.
+    - The tool fetches the **Dataset Title** and **Type** to provide a human-readable report.
+6.  **Consolidated Output**: 
+    - All findings are merged into a single CSV, mapping each source article to its linked datasets.
 
 ## Project Structure
 
