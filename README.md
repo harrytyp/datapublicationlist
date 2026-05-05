@@ -10,20 +10,43 @@ This tool automates the discovery of formally and informally linked research dat
 
 The discovery process follows a multi-stage pipeline:
 
-1.  **Metadata Acquisition**: 
-    - Scrapes the research cluster's publication list for DOIs, titles, and authors.
-    - Results are cached locally in `scraper_cache.json` for performance.
-2.  **EndNote Linkage**: 
-    - Parses `.enl` library files to map article DOIs to direct PDF or repository URLs.
-    - Intelligently handles "dirty" identifiers and legacy mappings.
+1.  **Flexible Input Collection**: 
+    - The tool can gather publications from multiple sources simultaneously:
+        - **Website**: Scrapes WordPress-based lists (e.g., e-conversion).
+        - **EndNote (.enl)**: Parses binary library files for DOIs and PDF links.
+        - **RIS (.ris)**: Standard citation format supported by most reference managers.
+        - **JSON**: Simple structured list of articles.
+2.  **Universal Deduplication**: 
+    - Articles from all sources are merged and deduplicated by DOI.
 3.  **Core API Discovery**: 
-    - Queries **OpenAIRE Graph**, **Crossref**, and **DataCite** for formal `is-supplemented-by` or `has-part` relationships.
+    - Queries **OpenAIRE Graph**, **Crossref**, and **DataCite** for formal links.
 4.  **Domain-Specific Discovery**: 
-    - Queries specialized registries like **DOE Data Explorer** and **HEPData** for formally declared data links in Physics and Energy research.
+    - Queries specialized registries like **DOE Data Explorer** and **HEPData**.
 5.  **Full-Text Fallback (Optional)**: 
-    - If no formal link is found, scans the article's PDF (via ENL link or Unpaywall) for DOI mentions of known data repositories.
+    - Scans article PDFs (via EndNote links or Unpaywall) for repository mentions.
 6.  **Validation & Enrichment**: 
-    - Confirms all candidates against DataCite/Crossref and fetches human-readable titles and resource types.
+    - Confirms candidates and fetches metadata (Titles, Types).
+
+## Input Sources
+
+You can configure which inputs to use in `config.json`. Place files in the root directory or specify a path:
+
+| Source | Format | Key in `config.json` | Use case |
+|---|---|---|---|
+| Cluster Website | Web / HTML | `website` | Automated cluster-wide discovery |
+| EndNote | `.enl` (binary) | `enl` | Leveraging existing research libraries |
+| RIS | `.ris` (text) | `ris` | Export from Zotero, Mendeley, etc. |
+| JSON | `.json` | `json` | Manual or custom lists |
+
+### How to Organize Inputs
+- **ENL Files**: Place your `.enl` file (e.g., `e-conversion-Converted.enl`) in the root folder.
+- **RIS Files**: Export your library as RIS and update the `filepath` in `config.json`.
+- **JSON Format**:
+  ```json
+  [
+    {"article_doi": "10.1038/s41467-019-10632-z", "title": "Example", "authors": "Smith", "year": "2019"}
+  ]
+  ```
 
 ## Supported Discovery Services
 
