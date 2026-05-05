@@ -12,7 +12,7 @@ class MDFAdapter(BaseAdapter):
     def __init__(self, config, http_config):
         super().__init__(config, http_config)
         self.session = HTTPSession(
-            base_url=config.get("base_url", "https://acdc.alcf.anl.gov/mdf"),
+            base_url=config.get("base_url", "https://search.api.globus.org/v1/index/2ba8ad7d-5983-403a-b16c-94119d592b23"),
             timeout=config.get("timeout_seconds", 20),
             user_agent=http_config.user_agent
         )
@@ -21,14 +21,16 @@ class MDFAdapter(BaseAdapter):
         normalized_input = normalize_doi(doi)
         links = []
         try:
-            params = {"q": f'"{normalized_input}"', "limit": 50}
+            params = {"q": f'"{normalized_input}"', "limit": 50, "advanced": "true"}
             response = self.session.get("search", params=params)
             if not response: return AdapterResult(adapter_name=self.name, input_doi=doi)
-            results = response.json().get("results", [])
+            data = response.json()
+            results = data.get("gmeta", [])
             for res in results:
-                if normalized_input in str(res):
-                    dataset_doi = res.get("mdf", {}).get("doi")
-                    dataset_url = res.get("mdf", {}).get("source_url")
+                content = res.get("entries", [{}])[0].get("content", {})
+                if normalized_input in str(content):
+                    dataset_doi = content.get("mdf", {}).get("doi")
+                    dataset_url = content.get("mdf", {}).get("source_url")
                     links.append(DatasetLink(
                         source_doi=doi,
                         dataset_doi=dataset_doi,

@@ -14,8 +14,9 @@ class HEPDataAdapter(BaseAdapter):
         self.session = HTTPSession(
             base_url=config.get("base_url", "https://www.hepdata.net"),
             timeout=config.get("timeout_seconds", 15),
-            user_agent=http_config.user_agent
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         )
+        self.session.headers["Accept"] = "application/json"
         self.emit_table_level_dois = config.get("emit_table_level_dois", True)
 
     def fetch(self, doi: str) -> AdapterResult:

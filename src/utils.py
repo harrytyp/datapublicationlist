@@ -54,7 +54,10 @@ class HTTPSession:
 
     def get(self, endpoint: str, params: Optional[dict] = None, rate_limit_delay: float = 1.0, retries: int = 3, backoff: float = 2.0):
         """Perform a GET request with retry and rate-limiting."""
-        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        if endpoint:
+            url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        else:
+            url = self.base_url
         
         # Log outgoing request (redact DOI for privacy/brevity)
         redacted_params = {}

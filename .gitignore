@@ -12,6 +12,7 @@ scraper_cache.json
 data_publication_dois.csv
 *.enl
 config.json
+e-conversion-Converted.enl
 
 # IDEs
 .vscode/
