@@ -13,6 +13,9 @@ from datacite import query_datacite
 from pdf_scanner import get_pdf_url, extract_dois_from_pdf, filter_likely_dataset_dois
 from resolver import is_data_publication, get_doi_metadata
 
+from stage3b.config import Stage3bConfig
+from stage3b.pipeline import Stage3bPipeline
+
 # Load configuration
 CONFIG_PATH = "config.json"
 
@@ -43,34 +46,58 @@ MAX_WORKERS = config["max_workers"]
 PROCESS_LIMIT = config["process_limit"]
 SKIP_PDF_SCAN = config.get("skip_pdf_scan", False)
 
+# Initialize Stage 3b discovery pipeline
+stage3b_pipeline = Stage3bPipeline(Stage3bConfig())
+
 def process_article(article: dict, enl_url: str = None) -> list[dict]:
     """Process a single article to find linked datasets and return their metadata."""
     doi = article["article_doi"]
     candidate_dois = set()
 
-    # Stage 3: API lookups
+    # Stage 3a: Core API lookups
     candidate_dois.update(query_openaire(doi))
     candidate_dois.update(query_crossref(doi, EMAIL))
     candidate_dois.update(query_datacite(doi))
 
-    # Stage 4: PDF fallback if no candidates found
-    if not candidate_dois and not SKIP_PDF_SCAN:
-        # Prioritize URL from ENL file
-        pdf_url = enl_url if enl_url else get_pdf_url(doi, EMAIL)
-        if pdf_url:
-            raw_dois = extract_dois_from_pdf(pdf_url)
-            candidate_dois.update(filter_likely_dataset_dois(raw_dois))
-
     # Remove the article DOI itself from candidates
     candidate_dois.discard(doi)
 
-    # Resolve and classify
+    # Resolve and classify Core candidates
     confirmed_datasets = []
     for candidate in candidate_dois:
         time.sleep(0.1)  # Rate limiting
         meta = get_doi_metadata(candidate, EMAIL)
         if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
             confirmed_datasets.append(meta)
+
+    # Stage 3b: Domain-specific discovery (DOE, HEPData, etc.)
+    s3b_links = stage3b_pipeline.get_all_links(doi)
+    for link in s3b_links:
+        if link.dataset_doi:
+            # Check if we already have it
+            if not any(d["doi"] == link.dataset_doi for d in confirmed_datasets):
+                meta = get_doi_metadata(link.dataset_doi, EMAIL)
+                confirmed_datasets.append(meta)
+        elif link.dataset_url:
+             # URL only entry
+             confirmed_datasets.append({
+                 "doi": link.dataset_doi,
+                 "title": f"[{link.repository}] Linked Data",
+                 "type": "dataset (url only)"
+             })
+
+    # Stage 4: PDF fallback if no candidates found so far
+    if not confirmed_datasets and not SKIP_PDF_SCAN:
+        # Prioritize URL from ENL file
+        pdf_url = enl_url if enl_url else get_pdf_url(doi, EMAIL)
+        if pdf_url:
+            raw_dois = extract_dois_from_pdf(pdf_url)
+            pdf_candidates = filter_likely_dataset_dois(raw_dois)
+            for candidate in pdf_candidates:
+                if candidate != doi:
+                    meta = get_doi_metadata(candidate, EMAIL)
+                    if meta["type"] in ["dataset", "data paper", "datapaper", "software", "collection"]:
+                        confirmed_datasets.append(meta)
 
     return confirmed_datasets
 
