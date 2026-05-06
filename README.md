@@ -19,12 +19,18 @@ A robust, modular Python pipeline to identify research datasets linked to scient
 - [License](#license)
 
 ## Overview
+ 
+ This tool automates the discovery of formally and informally linked research data by cross-referencing publication lists with major metadata APIs and domain-specific repositories.
+ 
+ ### The core problem it solves
+ Research data is only truly Findable if it is registered in a searchable index. In practice, many datasets are deposited in FAIR-compliant repositories (Zenodo, Figshare, etc.) but the link between the dataset and its parent publication is never surfaced — it sits buried in a DataCite metadata record that no one actively queries. The data is technically FAIR, but functionally invisible to the research community and the institution that funded it.
+ 
+ This problem becomes particularly acute for larger research clusters and collaborative projects — such as DFG Clusters of Excellence, EU-funded consortia, or national research initiatives — which are routinely expected by funders and reviewers to demonstrate that their publications are accompanied by openly published data. With dozens or hundreds of papers produced across multiple institutes and working groups, there is no practical way to manually verify data publication compliance at scale. A data steward cannot simply ask every PI whether their dataset was deposited; the answer needs to be evidenced, not asserted.
+ 
+ This tool closes that gap by automating the retrieval of existing FAIR-compliant links across multiple global registries, making the latent FAIRness of a research cluster's data visible in one consolidated report — and producing an auditable, machine-readable record that can be shared directly with funders or oversight bodies.
+ 
+ ### How it Works
 
-This tool automates the discovery of formally and informally linked research data by cross-referencing publication lists with major metadata APIs and domain-specific repositories.
-
-**Current Status:** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
-
-### How it Works
 
 The discovery process follows a multi-stage pipeline:
 
@@ -62,8 +68,11 @@ The tool features a **Zero-Config Drop-in** system. Simply place your publicatio
 The tool will merge articles from all files in the `inputs/` folder and the website, deduplicate them by DOI, and start the discovery process.
 
 ## Supported Discovery Services
+ 
+ **Current Status:** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
+ 
+ | Service | Category | Status | Domain | Confidence | Notes |
 
-| Service | Category | Status | Domain | Confidence | Notes |
 |---|---|---|---|---|---|
 | **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing); found Figshare-hosted datasets |
 | **OpenAIRE Graph** | Core | ✅ **Working** | All domains | Confirmed/Inferred | No errors, but limited results (indexing lag) |
@@ -125,6 +134,7 @@ Edit `config.json` before running. Key settings include:
 - **`email`**: Required for the "polite pool" (Crossref/Unpaywall).
 - **`skip_pdf_scan`**: Set to `true` (default) for fast API-only discovery.
 - **`process_limit`**: Set to a number for testing, or `null` for full run.
+- **`logging`**: Configure logging output and verbosity.
 - **`adapters`**: Enable or disable specific discovery services.
 
 Example `config.json`:
@@ -133,6 +143,12 @@ Example `config.json`:
   "email": "you@example.com",
   "skip_pdf_scan": true,
   "process_limit": 10,
+  "logging": {
+    "level": "INFO",
+    "file": "discovery.log",
+    "console": true,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
   "adapters": {
     "datacite": true,
     "openaire": true,
@@ -147,29 +163,40 @@ Example `config.json`:
 ```
 
 ## Usage
+ 
+ Run the main script:
+ ```bash
+ python main.py
+ ```
+ 
+ The tool generates two primary output files:
+ 1. **CSV (`data_publication_dois.csv`)**: A machine-readable table of all discovered links.
+ 2. **Markdown Report (`discovery_report.md`)**: A human-readable report following FAIR (Findable, Accessible, Interoperable, Reusable) principles, grouping datasets by publication and relation type, with confidence indicators and a final JSON data block.
+ 
+ ### Sample Output
+ 
+ #### CSV Format
+ The CSV includes columns such as `doi`, `title`, `dataset_url`, `dataset_title`, `adapter`, and `confidence`.
+ 
+ Example output:
+ ```csv
+ doi,title,dataset_url,dataset_title,adapter,confidence
+ 10.1038/s41586-020-2649-2,"Structural basis for...",https://doi.org/10.6084/m9.figshare.12671864,"Cryo-EM structure of...",DataCite,high
+ ```
+ 
+ #### FAIR Markdown Report
+ The report is designed as an instrument for FAIR data management:
+ - **Findable**: DOI-centric design anchors all publications and datasets to persistent identifiers, querying multiple global indices (DataCite, Crossref, OpenAIRE) to surface hidden links.
+ - **Accessible**: All data is retrieved via standardized open APIs and presented with direct, clickable hyperlinks to repositories.
+ - **Interoperable**: Utilizes community-standard relation types (e.g., `IsSupplementTo`) and provides a machine-readable JSON block for downstream automation.
+ - **Reusable**: Implements a trust-signal system with confidence indicators (✅ Curated, ☑️ Verified, ⚠️ Unverified) and full provenance tracking of the discovery source.
+ 
+ **Report Structure:**
+ - **Summary**: Global stats on processed publications and dataset discovery.
+ - **Detailed View**: Each publication is a section with its DOI, authors, and a short description.
+ - **Dataset Grouping**: Datasets are grouped by relation with confidence badges.
+ - **Machine-Readable Block**: A nested JSON array at the end for easy parsing.
 
-Run the main script:
-```bash
-python main.py
-```
-
-The results are saved to `data_publication_dois.csv` with full provenance, including article metadata and the originating dataset repository.
-
-### Sample Output
-
-The tool generates a CSV file with columns including:
-- `doi`: Publication DOI
-- `title`: Publication title  
-- `dataset_url`: Discovered dataset URL
-- `dataset_title`: Dataset title
-- `adapter`: Which service found the link (DataCite, OpenAIRE, etc.)
-- `confidence`: Confidence level of the link
-
-Example output:
-```csv
-doi,title,dataset_url,dataset_title,adapter,confidence
-10.1038/s41586-020-2649-2,"Structural basis for...",https://doi.org/10.6084/m9.figshare.12671864,"Cryo-EM structure of...",DataCite,high
-```
 
 ## History & Credits
 

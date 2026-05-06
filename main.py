@@ -1,6 +1,8 @@
 import csv
 import json
+import logging
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
@@ -21,6 +23,12 @@ def load_config():
         "max_workers": 4,
         "process_limit": None,
         "skip_pdf_scan": True,
+        "logging": {
+            "level": "INFO",
+            "file": None,
+            "console": True,
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        },
         "input_sources": {},
         "adapters": {}
     }
@@ -30,7 +38,43 @@ def load_config():
             default_config.update(user_config)
     return default_config
 
+def setup_logging(config):
+    """Setup logging based on configuration."""
+    logging_config = config.get("logging", {})
+    level = getattr(logging, logging_config.get("level", "INFO").upper())
+    log_format = logging_config.get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    
+    # Create formatter
+    formatter = logging.Formatter(log_format)
+    
+    # Setup root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # Remove any existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Add console handler if enabled
+    if logging_config.get("console", True):
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        root_logger.addHandler(console_handler)
+    
+    # Add file handler if file specified
+    log_file = logging_config.get("file")
+    if log_file:
+        # Ensure log directory exists
+        log_dir = os.path.dirname(log_file) if os.path.dirname(log_file) else "."
+        os.makedirs(log_dir, exist_ok=True)
+        
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
 config = load_config()
+setup_logging(config)
+
 EMAIL = config["email"]
 OUTPUT_FILE = config["output_file"]
 MAX_WORKERS = config["max_workers"]
@@ -113,12 +157,12 @@ def main():
     if not articles:
         print("No articles found in any input source. Check your config.json.")
         return
-
+    
     # Limit processing if configured
     if PROCESS_LIMIT:
         print(f"Limiting process to first {PROCESS_LIMIT} articles for testing.")
         articles = articles[:PROCESS_LIMIT]
-
+    
     # 2. Process each article
     results = []
     print(f"\nProcessing {len(articles)} articles for linked datasets...")
@@ -129,88 +173,175 @@ def main():
             article = futures[future]
             try:
                 datasets = future.result()
-                for ds in datasets:
+                
+                # Fetch article metadata for the report (including description)
+                art_meta = get_doi_metadata(article["article_doi"], EMAIL)
+                
+                if not datasets:
+                    # Still add the article to results so it appears in the report
                     results.append({
                         "article_doi": article["article_doi"],
                         "article_title": article["title"],
                         "article_authors": article["authors"],
                         "article_year": article["year"],
-                        "dataset_doi": ds.get("doi"),
-                        "dataset_title": ds.get("title"),
-                        "dataset_type": ds.get("type"),
-                        "dataset_url": ds.get("url") or (f"https://doi.org/{ds['doi']}" if ds.get('doi') else ""),
-                        "discovery_source": ", ".join(ds.get("discovery_sources", ["Unknown"])),
-                        "input_source": article.get("extra_data", {}).get("source_name", "Unknown"),
-                        "is_strong": ds.get("is_strong", False),
-                        "relation_type": ds.get("relation_type", "Unknown")
+                        "article_description": art_meta.get("description", "No description available."),
+                        "datasets": []
+                    })
+                else:
+                    dataset_list = []
+                    for ds in datasets:
+                        dataset_list.append({
+                            "dataset_doi": ds.get("doi"),
+                            "dataset_title": ds.get("title"),
+                            "dataset_type": ds.get("type"),
+                            "dataset_url": ds.get("url") or (f"https://doi.org/{ds['doi']}" if ds.get('doi') else ""),
+                            "discovery_source": ", ".join(ds.get("discovery_sources", ["Unknown"])),
+                            "is_strong": ds.get("is_strong", False),
+                            "relation_type": ds.get("relation_type", "Unknown")
+                        })
+                    
+                    results.append({
+                        "article_doi": article["article_doi"],
+                        "article_title": article["title"],
+                        "article_authors": article["authors"],
+                        "article_year": article["year"],
+                        "article_description": art_meta.get("description", "No description available."),
+                        "datasets": dataset_list
                     })
             except Exception as e:
                 print(f"Error processing article {article['article_doi']}: {e}")
-
+    
     # 3. Save to Markdown Report
     if results:
+        # Confidence indicator logic
+        def get_confidence(repo, is_strong):
+            curated_repos = {"CCDC", "FIZ ICSD", "Dryad"}
+            if any(cr in repo for cr in curated_repos):
+                return "✅ Curated deposit"
+            if is_strong:
+                return "☑️ Verified"
+            return "⚠️ Unverified"
+
+        # Summary stats
+        total_pubs = len(results)
+        total_datasets = sum(len(r["datasets"]) for r in results)
+        repo_counts = {}
+        conf_counts = {"✅ Curated deposit": 0, "☑️ Verified": 0, "⚠️ Unverified": 0}
+        
+        for r in results:
+            for ds in r["datasets"]:
+                repo = ds["discovery_source"].split(",")[0].strip()
+                repo_counts[repo] = repo_counts.get(repo, 0) + 1
+                conf = get_confidence(ds["discovery_source"], ds["is_strong"])
+                conf_counts[conf] = conf_counts.get(conf, 0) + 1
+
         md_report = "# Data Discovery Report\n\n"
         md_report += f"Generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        # Group by article
-        articles_map = {}
+        md_report += "## Summary\n"
+        md_report += f"- **Total publications processed:** {total_pubs}\n"
+        md_report += f"- **Total datasets found:** {total_datasets}\n\n"
+        
+        md_report += "### Breakdown by Repository\n"
+        for repo, count in repo_counts.items():
+            md_report += f"- {repo}: {count}\n"
+        md_report += "\n"
+        
+        md_report += "### Breakdown by Confidence\n"
+        for conf, count in conf_counts.items():
+            md_report += f"- {conf}: {count}\n"
+        md_report += "\n---\n\n"
+        
+        # Detailed Publications
         for r in results:
             doi = r["article_doi"]
-            if doi not in articles_map:
-                articles_map[doi] = {
-                    "title": r["article_title"],
-                    "authors": r["article_authors"],
-                    "year": r["article_year"],
-                    "strong": [],
-                    "weak": []
-                }
-            if r["is_strong"]:
-                articles_map[doi]["strong"].append(r)
-            else:
-                articles_map[doi]["weak"].append(r)
-        
-        for doi, data in articles_map.items():
-            md_report += f"## {data['title']}\n"
-            md_report += f"**DOI:** [{doi}](https://doi.org/{doi}) | **Year:** {data['year']}\n\n"
-            md_report += f"**Authors:** {data['authors']}\n\n"
+            datasets = r["datasets"]
             
-            if data["strong"]:
-                md_report += "### ✅ Formal Supplements\n"
-                md_report += "| Dataset Title | Repository / Source | Relation |\n"
-                md_report += "| --- | --- | --- |\n"
-                for ds in data["strong"]:
-                    url = ds["dataset_url"]
-                    title = ds["dataset_title"]
-                    md_report += f"| [{title}]({url}) | {ds['discovery_source']} | {ds['relation_type']} |\n"
-                md_report += "\n"
+            md_report += f"## {r['article_title']}\n"
+            md_report += f"**DOI:** [{doi}](https://doi.org/{doi}) | **Year:** {r['article_year']}\n"
+            md_report += f"**Authors:** {r['article_authors']}\n"
+            md_report += f"**Description:** {r['article_description']}\n"
+            md_report += f"**Datasets:** `{len(datasets)} datasets`\n\n"
+            
+            if not datasets:
+                md_report += "_No datasets found_\n\n"
+            else:
+                # Group by relation type
+                relations = {}
+                for ds in datasets:
+                    rel = ds["relation_type"]
+                    if rel not in relations: relations[rel] = []
+                    relations[rel].append(ds)
                 
-            if data["weak"]:
-                md_report += "### 🔍 Other Mentions & Related Data\n"
-                md_report += "| Dataset Title | Repository / Source | Relation |\n"
-                md_report += "| --- | --- | --- |\n"
-                for ds in data["weak"]:
-                    url = ds["dataset_url"]
-                    title = ds["dataset_title"]
-                    md_report += f"| [{title}]({url}) | {ds['discovery_source']} | {ds['relation_type']} |\n"
-                md_report += "\n"
+                for rel, ds_list in relations.items():
+                    md_report += f"### {rel}\n"
+                    md_report += "| Dataset Title | Repository | Confidence | Type |\n"
+                    md_report += "| --- | --- | --- | --- |\n"
+                    for ds in ds_list:
+                        url = ds["dataset_url"]
+                        title = ds["dataset_title"]
+                        repo = ds["discovery_source"]
+                        conf = get_confidence(repo, ds["is_strong"])
+                        dtype = ds["dataset_type"]
+                        md_report += f"| [{title}]({url}) | {repo} | {conf} | {dtype} |\n"
+                    md_report += "\n"
             
             md_report += "---\n\n"
             
+        # JSON block at the end
+        md_report += "## Machine-Readable Data\n\n"
+        md_report += "```json\n"
+        json_data = []
+        for r in results:
+            json_data.append({
+                "publication": {
+                    "doi": r["article_doi"],
+                    "title": r["article_title"],
+                    "year": r["article_year"],
+                    "authors": r["article_authors"],
+                    "description": r["article_description"],
+                    "datasets": r["datasets"]
+                }
+            })
+        md_report += json.dumps(json_data, indent=2)
+        md_report += "\n```\n"
+        
         with open("discovery_report.md", "w", encoding="utf-8") as f:
             f.write(md_report)
         print(f"Markdown report saved to: discovery_report.md")
-
+    
     # 4. Save to CSV
     if results:
-        # Filter out the internal 'is_strong' for the CSV if desired, or keep it
-        keys = results[0].keys()
-        with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=keys)
-            writer.writeheader()
-            writer.writerows(results)
-        print(f"Results saved to: {OUTPUT_FILE}")
+        # Flatten for CSV
+        csv_rows = []
+        for r in results:
+            for ds in r["datasets"]:
+                csv_rows.append({
+                    "article_doi": r["article_doi"],
+                    "article_title": r["article_title"],
+                    "article_authors": r["article_authors"],
+                    "article_year": r["article_year"],
+                    "dataset_doi": ds["dataset_doi"],
+                    "dataset_title": ds["dataset_title"],
+                    "dataset_type": ds["dataset_type"],
+                    "dataset_url": ds["dataset_url"],
+                    "discovery_source": ds["discovery_source"],
+                    "is_strong": ds["is_strong"],
+                    "relation_type": ds["relation_type"]
+                })
+        
+        if csv_rows:
+            keys = csv_rows[0].keys()
+            with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=keys)
+                writer.writeheader()
+                writer.writerows(csv_rows)
+            print(f"Results saved to: {OUTPUT_FILE}")
+        else:
+            print("\nNo datasets found for any article.")
     else:
-        print("\nNo datasets found.")
+        print("\nNo articles processed.")
+
 
 if __name__ == "__main__":
     main()

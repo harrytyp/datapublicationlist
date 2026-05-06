@@ -5,7 +5,7 @@ DATASET_TYPES = {"dataset", "data paper", "datapaper", "software", "collection"}
 
 def get_doi_metadata(doi: str, email: str) -> dict:
     """
-    Returns metadata for a DOI: {'title': ..., 'type': ..., 'doi': ...}
+    Returns metadata for a DOI: {'title': ..., 'type': ..., 'doi': ..., 'description': ...}
     Checks DataCite first, then Crossref.
     """
     # 1. Try DataCite
@@ -17,10 +17,12 @@ def get_doi_metadata(doi: str, email: str) -> dict:
             attrs = response.json().get("data", {}).get("attributes", {})
             title = attrs.get("titles", [{}])[0].get("title", "No Title")
             resource_type = attrs.get("types", {}).get("resourceTypeGeneral", "Unknown")
+            description = attrs.get("description", "No description available.")
             return {
                 "doi": doi,
                 "title": title,
-                "type": resource_type.lower()
+                "type": resource_type.lower(),
+                "description": description
             }
         except Exception:
             pass
@@ -35,15 +37,23 @@ def get_doi_metadata(doi: str, email: str) -> dict:
             work = response.json().get("message", {})
             title = work.get("title", ["No Title"])[0]
             ctype = work.get("type", "unknown")
+            # Crossref abstracts are sometimes in the 'abstract' field (HTML encoded)
+            description = work.get("abstract", "No description available.")
+            if description:
+                # Basic cleanup of Crossref HTML abstracts
+                import re
+                description = re.sub('<[^<]+?>', '', description).strip()
+            
             return {
                 "doi": doi,
                 "title": title,
-                "type": ctype.lower()
+                "type": ctype.lower(),
+                "description": description
             }
         except Exception:
             pass
     
-    return {"doi": doi, "title": "Unknown", "type": "unknown"}
+    return {"doi": doi, "title": "Unknown", "type": "unknown", "description": "No description available."}
 
 def is_data_publication(doi: str, email: str) -> bool:
     """Return True if the DOI resolves to a dataset or data publication."""

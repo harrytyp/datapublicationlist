@@ -14,6 +14,7 @@ data_publication_dois.csv
 *.enl
 config.json
 e-conversion-Converted.enl
+scraper_cache_econversion.json
 
 # IDEs
 .vscode/
