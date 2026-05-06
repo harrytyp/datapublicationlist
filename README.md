@@ -67,16 +67,16 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
  **Current Status:** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
  
 | Service | Category | Status | Domain | Confidence | Notes |
-
 |---|---|---|---|---|---|
-| **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing); found Figshare-hosted datasets |
-| **OpenAIRE Graph** | Core | ✅ **Working** | All domains | Confirmed/Inferred | No errors, but limited results (indexing lag) |
-| **Crossref** | Core | ✅ **Working** | All domains | Confirmed | Fixed URL encoding; 404s indicate unregistered DOIs |
-| **DOE Data Explorer** | Domain | ✅ **Working** | Energy, Materials | Confirmed | No errors in testing |
-| **HEPData** | Domain | ❌ **Disabled** | Particle Physics | N/A | 403 Forbidden - API access restricted |
-| **NASA ADS / SciX** | Domain | ❌ **Disabled** | Astrophysics | N/A | Requires API token (not configured) |
-| **Materials Data Facility** | Domain | ❌ **Disabled** | Materials Science | N/A | 404 Not Found - endpoint changed/deprecated |
-| **NOMAD / OPTIMADE** | Domain | ❌ **Disabled** | Computational Mat. | N/A | API doesn't support publication-to-dataset queries |
+| DataCite | Core | ✅ Working | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing); found Figshare-hosted datasets |
+| OpenAIRE Graph | Core | ✅ Working | All domains | Confirmed/Inferred | No errors, but limited results (indexing lag) |
+| Crossref | Core | ✅ Working | All domains | Confirmed | Fixed URL encoding; 404s indicate unregistered DOIs |
+| DOE Data Explorer | Domain | ✅ Working | Energy, Materials | Confirmed | No errors in testing |
+| HEPData | Domain | ❌ Disabled | Particle Physics | N/A | 403 Forbidden - API access restricted |
+| NASA ADS / SciX | Domain | ❌ Disabled | Astrophysics | N/A | Requires API token (not configured) |
+| Materials Data Facility | Domain | ❌ Disabled | Materials Science | N/A | 404 Not Found - endpoint changed/deprecated |
+| NOMAD / OPTIMADE | Domain | ❌ Disabled | Computational Mat. | N/A | API doesn't support publication-to-dataset queries |
+
 
 ### Testing Results
 
