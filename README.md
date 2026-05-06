@@ -65,7 +65,7 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 
 | Service | Category | Status | Domain | Confidence | Notes |
 |---|---|---|---|---|---|
-| **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing) |
+| **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing); found Figshare-hosted datasets |
 | **OpenAIRE Graph** | Core | ✅ **Working** | All domains | Confirmed/Inferred | No errors, but limited results (indexing lag) |
 | **Crossref** | Core | ✅ **Working** | All domains | Confirmed | Fixed URL encoding; 404s indicate unregistered DOIs |
 | **DOE Data Explorer** | Domain | ✅ **Working** | Energy, Materials | Confirmed | No errors in testing |
@@ -73,20 +73,6 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 | **NASA ADS / SciX** | Domain | ❌ **Disabled** | Astrophysics | N/A | Requires API token (not configured) |
 | **Materials Data Facility** | Domain | ❌ **Disabled** | Materials Science | N/A | 404 Not Found - endpoint changed/deprecated |
 | **NOMAD / OPTIMADE** | Domain | ❌ **Disabled** | Computational Mat. | N/A | API doesn't support publication-to-dataset queries |
-
-### Service Status Details
-
-**✅ Working Services:**
-- **DataCite**: Primary dataset discovery service. Found multiple Figshare-hosted datasets in testing. Uses reverse lookup to find datasets that reference publications.
-- **OpenAIRE**: Comprehensive linkage database. Runs without errors but may have indexing delays for newer publications.
-- **Crossref**: Official DOI registry relationships. Only works for publications registered with Crossref metadata.
-- **DOE Data Explorer**: U.S. Department of Energy data portal. Reliable for energy/materials research.
-
-**❌ Disabled Services:**
-- **HEPData**: CERN's particle physics data repository. Currently returns 403 Forbidden errors, indicating access restrictions or API changes.
-- **NASA ADS**: Astrophysics data system. Requires API token configuration (not included for privacy/security).
-- **MDF**: Materials Data Facility. Globus endpoint returns 404, suggesting the service has moved or changed.
-- **NOMAD**: Computational materials database. API v1 doesn't support searchable publication-to-dataset relationships.
 
 ### Testing Results
 
@@ -97,13 +83,7 @@ Recent testing with multiple publications found:
 - All working adapters completed without errors
 - Broken adapters properly disabled to avoid confusion
 
-## Recent Updates
-
-- **Fixed Crossref URL encoding**: Resolved 404 errors caused by improper DOI encoding in API paths
-- **Updated DataCite adapter**: Improved relation type filtering and confidence levels
-- **Fixed OpenAIRE adapter**: Added pagination, inverse lookups, and provider-based confidence scoring
-- **Disabled broken adapters**: HEPData (403 Forbidden), MDF (404), NOMAD (unsupported API)
-- **Enhanced error handling**: Better logging and graceful failure handling across all adapters
+See [CHANGELOG.md](CHANGELOG.md) for version history and recent updates.
 
 ## Project Structure
 
