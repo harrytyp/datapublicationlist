@@ -100,7 +100,6 @@ Recent testing (May 2026) with multiple publications found:
 ```text
 ├── main.py              # Main pipeline entry point
 ├── config.json          # User configuration (Email, limits, etc.)
-├── test_pdf_scan.py     # Diagnostic tool for PDF scanning
 ├── src/                 # Internal discovery logic
 │   ├── adapters/        # Discovery service implementations
 │   ├── discovery_pipeline.py

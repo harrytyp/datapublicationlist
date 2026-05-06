@@ -9,7 +9,6 @@ ENV/
 
 # Project Specific
 ignored/
-test_pdf_scan.py
 *_econversion.*
 data_publication_dois.csv
 *.enl
