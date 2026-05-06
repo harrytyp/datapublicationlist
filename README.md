@@ -2,17 +2,27 @@
 
 A robust, modular Python pipeline to identify research datasets linked to scientific publications by integrating multiple metadata sources and full-text scanning.
 
-## History & Credits
+![Python](https://img.shields.io/badge/python-3.8+-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Status](https://img.shields.io/badge/status-active-green)
 
-This tool was originally developed by **Kolja Knodel**, Data Steward of the [e-conversion](https://www.e-conversion.de/) research cluster. 
-
-The project's origin and core purpose is to automate the discovery of formally declared data publications from traditional publication lists. The built-in website scraper was the first input source created, specifically tailored to help research clusters track their data impact by cross-referencing their official WordPress-based publication records with global data registries.
+## Table of Contents
+- [Overview](#overview)
+- [How it Works](#how-it-works)
+- [Input Sources](#input-sources)
+- [Supported Discovery Services](#supported-discovery-services)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [History & Credits](#history--credits)
+- [License](#license)
 
 ## Overview
 
 This tool automates the discovery of formally and informally linked research data by cross-referencing publication lists with major metadata APIs and domain-specific repositories.
 
-**Current Status (May 2026):** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
+**Current Status:** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
 
 ### How it Works
 
@@ -64,7 +74,7 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 | **Materials Data Facility** | Domain | ❌ **Disabled** | Materials Science | N/A | 404 Not Found - endpoint changed/deprecated |
 | **NOMAD / OPTIMADE** | Domain | ❌ **Disabled** | Computational Mat. | N/A | API doesn't support publication-to-dataset queries |
 
-### Service Status Details (May 2026)
+### Service Status Details
 
 **✅ Working Services:**
 - **DataCite**: Primary dataset discovery service. Found multiple Figshare-hosted datasets in testing. Uses reverse lookup to find datasets that reference publications.
@@ -80,14 +90,14 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 
 ### Testing Results
 
-Recent testing (May 2026) with multiple publications found:
+Recent testing with multiple publications found:
 - **5 dataset links** discovered across test publications
 - **DataCite** was the most effective (4/5 links)
 - **OpenAIRE/Crossref** returned 0 links (likely due to indexing delays)
 - All working adapters completed without errors
 - Broken adapters properly disabled to avoid confusion
 
-## Recent Updates (May 2026)
+## Recent Updates
 
 - **Fixed Crossref URL encoding**: Resolved 404 errors caused by improper DOI encoding in API paths
 - **Updated DataCite adapter**: Improved relation type filtering and confidence levels
@@ -114,10 +124,13 @@ Recent testing (May 2026) with multiple publications found:
 
 ## Installation
 
+**Prerequisites:**
+- Python 3.8 or higher
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/harrytyp/datapublicationlist.git
-   cd publication_finder
+   cd datapublicationlist
    ```
 
 2. Install dependencies:
@@ -134,6 +147,25 @@ Edit `config.json` before running. Key settings include:
 - **`process_limit`**: Set to a number for testing, or `null` for full run.
 - **`adapters`**: Enable or disable specific discovery services.
 
+Example `config.json`:
+```json
+{
+  "email": "you@example.com",
+  "skip_pdf_scan": true,
+  "process_limit": 10,
+  "adapters": {
+    "datacite": true,
+    "openaire": true,
+    "crossref": true,
+    "doe_dde": true,
+    "hepdata": false,
+    "nasa_ads": false,
+    "mdf": false,
+    "nomad": false
+  }
+}
+```
+
 ## Usage
 
 Run the main script:
@@ -142,6 +174,28 @@ python main.py
 ```
 
 The results are saved to `data_publication_dois.csv` with full provenance, including article metadata and the originating dataset repository.
+
+### Sample Output
+
+The tool generates a CSV file with columns including:
+- `doi`: Publication DOI
+- `title`: Publication title  
+- `dataset_url`: Discovered dataset URL
+- `dataset_title`: Dataset title
+- `adapter`: Which service found the link (DataCite, OpenAIRE, etc.)
+- `confidence`: Confidence level of the link
+
+Example output:
+```csv
+doi,title,dataset_url,dataset_title,adapter,confidence
+10.1038/s41586-020-2649-2,"Structural basis for...",https://doi.org/10.6084/m9.figshare.12671864,"Cryo-EM structure of...",DataCite,high
+```
+
+## History & Credits
+
+This tool was originally developed by **Kolja Knodel**, Data Steward of the [e-conversion](https://www.e-conversion.de/) research cluster.
+
+The project's origin and core purpose is to automate the discovery of formally declared data publications from traditional publication lists. The built-in website scraper was the first input source created, specifically tailored to help research clusters track their data impact by cross-referencing their official WordPress-based publication records with global data registries.
 
 ## License
 
