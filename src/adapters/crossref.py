@@ -17,7 +17,8 @@ class CrossrefAdapter(BaseAdapter):
             user_agent=http_config.user_agent
         )
         self.dataset_relation_types = {
-            "is-supplemented-by", "is-based-on", "has-part", "is-variant-form-of"
+            "is-supplemented-by",
+            "is-supplement-to",
         }
 
     def fetch(self, doi: str) -> AdapterResult:

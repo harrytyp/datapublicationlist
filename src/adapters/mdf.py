@@ -6,11 +6,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MDFAdapter(BaseAdapter):
-    """Adapter for the Materials Data Facility (MDF) API (Experimental)."""
+    """
+    MDF Adapter — CURRENTLY NON-FUNCTIONAL.
+    
+    As of May 2026, the MDF Globus search index returns 404 Not Found errors,
+    indicating the endpoint has changed or is no longer available. This adapter
+    is disabled by default and should not be expected to return results.
+    """
     name = "MDF"
 
     def __init__(self, config, http_config):
         super().__init__(config, http_config)
+        # Override enabled to False since this adapter doesn't work
+        self.enabled = False
         self.session = HTTPSession(
             base_url=config.get("base_url", "https://search.api.globus.org/v1/index/2ba8ad7d-5983-403a-b16c-94119d592b23"),
             timeout=config.get("timeout_seconds", 20),

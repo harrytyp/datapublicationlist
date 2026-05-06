@@ -9,6 +9,14 @@ class DataCiteAdapter(BaseAdapter):
     """Adapter for the DataCite REST API."""
     name = "DataCite"
 
+    STRONG_RELATION_TYPES = {
+        "IsSupplementTo",
+        "IsPartOf",
+        "IsPublishedIn",
+        "IsDerivedFrom",
+        "IsCompiledBy",
+    }
+
     def __init__(self, config, http_config):
         super().__init__(config, http_config)
         self.session = HTTPSession(
@@ -18,14 +26,17 @@ class DataCiteAdapter(BaseAdapter):
         )
 
     def fetch(self, doi: str) -> AdapterResult:
-        normalized_input = normalize_doi(doi)
+        normalized_input = normalize_doi(doi).lower()
         links = []
         errors = []
         page = 1
         
         while True:
             params = {
-                "query": f'relatedIdentifiers.relatedIdentifier:"{normalized_input}"',
+                "query": (
+                    f'relatedIdentifiers.relatedIdentifier:"{normalized_input}" AND '
+                    f'relatedIdentifiers.relatedIdentifierType:DOI'
+                ),
                 "resource-type-id": "dataset",
                 "page[size]": 50,
                 "page[number]": page,
@@ -47,15 +58,34 @@ class DataCiteAdapter(BaseAdapter):
                 items = data.get("data", [])
                 for item in items:
                     ds_doi = item.get("attributes", {}).get("doi", "")
-                    if ds_doi:
-                        links.append(DatasetLink(
-                            source_doi=doi,
-                            dataset_doi=ds_doi.strip(),
-                            relation_type="Unknown", # DataCite query is a reverse lookup
-                            repository="DataCite",
-                            confidence="confirmed",
-                            raw=item
-                        ))
+                    if not ds_doi:
+                        continue
+
+                    related_ids = item.get("attributes", {}).get("relatedIdentifiers", [])
+                    matched_relation = next(
+                        (
+                            r for r in related_ids
+                            if r.get("relatedIdentifier", "").strip().lower() == normalized_input
+                            and r.get("relatedIdentifierType", "").strip().upper() == "DOI"
+                        ),
+                        None
+                    )
+
+                    if not matched_relation:
+                        continue
+
+                    relation_type = matched_relation.get("relationType", "Unknown")
+                    if relation_type not in self.STRONG_RELATION_TYPES:
+                        continue
+
+                    links.append(DatasetLink(
+                        source_doi=doi,
+                        dataset_doi=ds_doi.strip(),
+                        relation_type=relation_type,
+                        repository="DataCite",
+                        confidence="inferred",
+                        raw=item
+                    ))
                 
                 total_pages = data.get("meta", {}).get("totalPages", 1)
                 if page >= total_pages:

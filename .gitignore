@@ -8,10 +8,9 @@ venv/
 ENV/
 
 # Project Specific
-scratch/
+ignored/
 test_pdf_scan.py
 *_econversion.*
-scraper_cache.json
 data_publication_dois.csv
 *.enl
 config.json

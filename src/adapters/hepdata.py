@@ -6,11 +6,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class HEPDataAdapter(BaseAdapter):
-    """Adapter for the HEPData API."""
+    """
+    HEPData Adapter — CURRENTLY NON-FUNCTIONAL.
+    
+    As of May 2026, the HEPData search API returns 403 Forbidden errors,
+    indicating access restrictions or API changes. This adapter is disabled
+    by default and should not be expected to return results.
+    """
     name = "HEPData"
 
     def __init__(self, config, http_config):
         super().__init__(config, http_config)
+        # Override enabled to False since this adapter doesn't work
+        self.enabled = False
         self.session = HTTPSession(
             base_url=config.get("base_url", "https://www.hepdata.net"),
             timeout=config.get("timeout_seconds", 15),

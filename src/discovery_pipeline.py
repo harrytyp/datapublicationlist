@@ -56,17 +56,30 @@ class DiscoveryPipeline:
         all_results = self.run(doi)
         links_map = {} # (dataset_doi or dataset_url, repository) -> link
         
+        # Strong Relations (Supplements, Parts, Descriptions)
+        STRONG_RELATIONS = {
+            "issupplementto", "issupplementedby", 
+            "isdescribedby", "describes", 
+            "ispartof", "haspart"
+        }
+
         for res in all_results:
             for link in res.links:
+                rel = (link.relation_type or "").lower().strip()
+                # Tag the link with its strength for reporting
+                link.is_strong = rel in STRONG_RELATIONS
+                
                 # Use DOI if available, else URL as key
                 key = (link.dataset_doi or link.dataset_url, link.repository)
                 
                 if key not in links_map:
                     links_map[key] = link
                 else:
-                    # Keep "confirmed" over "inferred"
+                    # Keep strong relations or confirmed confidence
                     existing = links_map[key]
-                    if link.confidence == "confirmed" and existing.confidence == "inferred":
+                    if link.is_strong and not getattr(existing, 'is_strong', False):
+                        links_map[key] = link
+                    elif link.confidence == "confirmed" and existing.confidence == "inferred":
                         links_map[key] = link
         
         return list(links_map.values())

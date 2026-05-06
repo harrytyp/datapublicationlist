@@ -1,4 +1,4 @@
-from typing import Literal, List, Dict, Optional
+from typing import Literal, List, Dict, Optional, Any
 from pydantic import BaseModel, Field
 
 class DatasetLink(BaseModel):
@@ -9,7 +9,8 @@ class DatasetLink(BaseModel):
     relation_type: str = "Unknown"
     repository: str
     confidence: Literal["confirmed", "inferred"]
-    raw: Dict = Field(default_factory=dict)
+    raw: Any = None
+    is_strong: bool = False
 
 class AdapterResult(BaseModel):
     """Wraps the output of one adapter run."""

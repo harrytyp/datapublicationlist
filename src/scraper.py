@@ -8,7 +8,7 @@ import time
 from .utils import get_with_retry
 
 PUBLICATIONS_URL = "https://www.e-conversion.de/de/publikationen/"
-CACHE_FILE = "scraper_cache.json"
+CACHE_FILE = "ignored/scraper_cache.json"
 
 def scrape_dois(url: str, use_cache: bool = True) -> list[dict]:
     """Scrape all article DOIs and metadata from the cluster publications page, handling pagination and caching."""

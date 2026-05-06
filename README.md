@@ -10,7 +10,9 @@ The project's origin and core purpose is to automate the discovery of formally d
 
 ## Overview
 
-This tool automates the discovery of formally and informally linked research data by cross-referencing a WordPress-based publication list with major metadata APIs, domain-specific repositories, and full-text PDF scanning.
+This tool automates the discovery of formally and informally linked research data by cross-referencing publication lists with major metadata APIs and domain-specific repositories.
+
+**Current Status (May 2026):** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
 
 ### How it Works
 
@@ -25,9 +27,9 @@ The discovery process follows a multi-stage pipeline:
 2.  **Universal Deduplication**: 
     - Articles from all sources are merged and deduplicated by DOI.
 3.  **Core API Discovery**: 
-    - Queries **OpenAIRE Graph**, **Crossref**, and **DataCite** for formal links.
+    - Queries **DataCite**, **OpenAIRE Graph**, and **Crossref** for formal links.
 4.  **Domain-Specific Discovery**: 
-    - Queries specialized registries like **DOE Data Explorer** and **HEPData**.
+    - Queries specialized registries like **DOE Data Explorer**.
 5.  **Full-Text Fallback (Optional)**: 
     - Scans article PDFs (via EndNote links or Unpaywall) for repository mentions.
 6.  **Validation & Enrichment**: 
@@ -51,16 +53,47 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 
 ## Supported Discovery Services
 
-| Service | Category | Enabled by default | Domain | Confidence |
-|---|---|---|---|---|
-| OpenAIRE Graph | Core | ✅ Yes | All domains | Confirmed |
-| Crossref | Core | ✅ Yes | All domains | Confirmed |
-| DataCite | Core | ✅ Yes | All domains | Confirmed |
-| DOE Data Explorer | Domain | ✅ Yes | Energy, Materials | Confirmed |
-| HEPData | Domain | ✅ Yes | Particle Physics | Confirmed |
-| NASA ADS / SciX | Domain | ❌ No | Astrophysics | Inferred |
-| Materials Data Facility | Domain | ❌ No | Materials Science | Inferred |
-| NOMAD / OPTIMADE | Domain | ❌ No | Computational Mat. | Inferred |
+| Service | Category | Status | Domain | Confidence | Notes |
+|---|---|---|---|---|---|
+| **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing) |
+| **OpenAIRE Graph** | Core | ✅ **Working** | All domains | Confirmed/Inferred | No errors, but limited results (indexing lag) |
+| **Crossref** | Core | ✅ **Working** | All domains | Confirmed | Fixed URL encoding; 404s indicate unregistered DOIs |
+| **DOE Data Explorer** | Domain | ✅ **Working** | Energy, Materials | Confirmed | No errors in testing |
+| **HEPData** | Domain | ❌ **Disabled** | Particle Physics | N/A | 403 Forbidden - API access restricted |
+| **NASA ADS / SciX** | Domain | ❌ **Disabled** | Astrophysics | N/A | Requires API token (not configured) |
+| **Materials Data Facility** | Domain | ❌ **Disabled** | Materials Science | N/A | 404 Not Found - endpoint changed/deprecated |
+| **NOMAD / OPTIMADE** | Domain | ❌ **Disabled** | Computational Mat. | N/A | API doesn't support publication-to-dataset queries |
+
+### Service Status Details (May 2026)
+
+**✅ Working Services:**
+- **DataCite**: Primary dataset discovery service. Found multiple Figshare-hosted datasets in testing. Uses reverse lookup to find datasets that reference publications.
+- **OpenAIRE**: Comprehensive linkage database. Runs without errors but may have indexing delays for newer publications.
+- **Crossref**: Official DOI registry relationships. Only works for publications registered with Crossref metadata.
+- **DOE Data Explorer**: U.S. Department of Energy data portal. Reliable for energy/materials research.
+
+**❌ Disabled Services:**
+- **HEPData**: CERN's particle physics data repository. Currently returns 403 Forbidden errors, indicating access restrictions or API changes.
+- **NASA ADS**: Astrophysics data system. Requires API token configuration (not included for privacy/security).
+- **MDF**: Materials Data Facility. Globus endpoint returns 404, suggesting the service has moved or changed.
+- **NOMAD**: Computational materials database. API v1 doesn't support searchable publication-to-dataset relationships.
+
+### Testing Results
+
+Recent testing (May 2026) with multiple publications found:
+- **5 dataset links** discovered across test publications
+- **DataCite** was the most effective (4/5 links)
+- **OpenAIRE/Crossref** returned 0 links (likely due to indexing delays)
+- All working adapters completed without errors
+- Broken adapters properly disabled to avoid confusion
+
+## Recent Updates (May 2026)
+
+- **Fixed Crossref URL encoding**: Resolved 404 errors caused by improper DOI encoding in API paths
+- **Updated DataCite adapter**: Improved relation type filtering and confidence levels
+- **Fixed OpenAIRE adapter**: Added pagination, inverse lookups, and provider-based confidence scoring
+- **Disabled broken adapters**: HEPData (403 Forbidden), MDF (404), NOMAD (unsupported API)
+- **Enhanced error handling**: Better logging and graceful failure handling across all adapters
 
 ## Project Structure
 
@@ -74,6 +107,8 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
 │   ├── discovery_models.py
 │   ├── utils.py         # Shared HTTP & DOI utilities
 │   └── ... (scrapers, parsers, scanners)
+├── inputs/              # Drop-in publication files (.enl, .ris, .json)
+├── ignored/             # All development files, test scripts, cache files, outputs (ignored - not in git)
 ├── requirements.txt
 └── README.md
 ```
