@@ -22,14 +22,9 @@ A robust, modular Python pipeline to identify research datasets linked to scient
  
  This tool automates the discovery of formally and informally linked research data by cross-referencing publication lists with major metadata APIs and domain-specific repositories.
  
- ### The core problem it solves
- Research data is only truly Findable if it is registered in a searchable index. In practice, many datasets are deposited in FAIR-compliant repositories (Zenodo, Figshare, etc.) but the link between the dataset and its parent publication is never surfaced — it sits buried in a DataCite metadata record that no one actively queries. The data is technically FAIR, but functionally invisible to the research community and the institution that funded it.
- 
- This problem becomes particularly acute for larger research clusters and collaborative projects — such as DFG Clusters of Excellence, EU-funded consortia, or national research initiatives — which are routinely expected by funders and reviewers to demonstrate that their publications are accompanied by openly published data. With dozens or hundreds of papers produced across multiple institutes and working groups, there is no practical way to manually verify data publication compliance at scale. A data steward cannot simply ask every PI whether their dataset was deposited; the answer needs to be evidenced, not asserted.
- 
- This tool closes that gap by automating the retrieval of existing FAIR-compliant links across multiple global registries, making the latent FAIRness of a research cluster's data visible in one consolidated report — and producing an auditable, machine-readable record that can be shared directly with funders or oversight bodies.
- 
  ### How it Works
+ 
+ The discovery process follows a multi-stage pipeline:
 
 
 The discovery process follows a multi-stage pipeline:
@@ -71,7 +66,7 @@ The tool will merge articles from all files in the `inputs/` folder and the webs
  
  **Current Status:** 4/8 adapters working, with DataCite providing the strongest dataset discovery capability. Tool successfully finds dataset links for registered publications.
  
- | Service | Category | Status | Domain | Confidence | Notes |
+| Service | Category | Status | Domain | Confidence | Notes |
 
 |---|---|---|---|---|---|
 | **DataCite** | Core | ✅ **Working** | All domains | Depositor-asserted | Most effective adapter (5+ links found in testing); found Figshare-hosted datasets |
@@ -199,10 +194,13 @@ Example `config.json`:
 
 
 ## History & Credits
+ 
+ This tool was originally developed by **Kolja Knodel**, Data Steward of the [e-conversion](https://www.e-conversion.de/) research cluster.
+ 
+ It grew out of a practical need: research clusters are increasingly expected to demonstrate that their publications are accompanied by openly published datasets, but no lightweight tool existed to automate that cross-check at scale. The built-in website scraper was the first feature developed, tailored to e-conversion's WordPress-based publication list, but the pipeline is designed to be fully generalisable to any research group or institution.
+ 
+ This tool closes that gap by automating the retrieval of existing links across multiple global registries, making the status of a research cluster's data visible in one consolidated report, and producing an auditable, machine-readable record that can be shared directly with funders or oversight bodies.
 
-This tool was originally developed by **Kolja Knodel**, Data Steward of the [e-conversion](https://www.e-conversion.de/) research cluster.
-
-The project's origin and core purpose is to automate the discovery of formally declared data publications from traditional publication lists. The built-in website scraper was the first input source created, specifically tailored to help research clusters track their data impact by cross-referencing their official WordPress-based publication records with global data registries.
 
 ## License
 
